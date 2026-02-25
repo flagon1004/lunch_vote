@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🍱 점심 메뉴 투표</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Black+Han+Sans&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FFF8F0;
+    --surface: #FFFFFF;
+    --primary: #FF6B35;
+    --primary-dark: #E8521D;
+    --secondary: #FFB347;
+    --accent: #2D9CDB;
+    --text: #1A1A2E;
+    --text-muted: #888;
+    --border: #F0E0D0;
+    --success: #27AE60;
+    --danger: #EB5757;
+    --shadow: 0 4px 24px rgba(255,107,53,0.15);
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; top: -50%; right: -20%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(255,179,71,0.2) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+  body::after { content: ''; position: fixed; bottom: -30%; left: -10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(255,107,53,0.12) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+
+  #app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; min-height: 100vh; padding: 0 0 40px; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 28px 24px 32px; position: relative; overflow: hidden; }
+  .header::before { content: '🍱'; position: absolute; font-size: 120px; right: -20px; top: -20px; opacity: 0.15; transform: rotate(15deg); }
+  .header-emoji { font-size: 36px; margin-bottom: 8px; display: block; }
+  .header h1 { font-family: 'Black Han Sans', sans-serif; font-size: 28px; letter-spacing: -0.5px; line-height: 1.2; }
+  .header p { font-size: 13px; opacity: 0.85; margin-top: 6px; }
+  .header-time { display: inline-block; background: rgba(255,255,255,0.2); border-radius: 20px; padding: 4px 12px; font-size: 12px; margin-top: 10px; backdrop-filter: blur(4px); }
+
+  /* Today banner */
+  .today-banner { background: linear-gradient(135deg, #1A1A2E, #2D3561); color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  .today-banner .t-icon { font-size: 32px; }
+  .today-banner .t-info { flex: 1; }
+  .today-banner .t-label { font-size: 11px; opacity: 0.6; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .today-banner .t-name { font-family: 'Black Han Sans', sans-serif; font-size: 20px; margin-top: 2px; }
+  .today-banner .t-unset { font-size: 14px; opacity: 0.5; font-style: italic; margin-top: 2px; }
+
+  /* Card */
+  .card { background: var(--surface); border-radius: var(--radius); padding: 24px; margin: 20px 16px 0; box-shadow: var(--shadow); }
+
+  /* Screens */
+  .screen { display: none; animation: fadeIn 0.3s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Blocked */
+  .blocked-screen { text-align: center; padding: 60px 32px; }
+  .blocked-emoji { font-size: 72px; display: block; margin-bottom: 20px; }
+  .blocked-screen h2 { font-size: 22px; font-weight: 900; margin-bottom: 12px; color: var(--primary); }
+  .blocked-screen p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
+  /* Overlays */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 20px; }
+  .overlay.active { display: flex; }
+  .popup { background: white; border-radius: 28px; padding: 32px 28px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.25); animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1); max-height: 90vh; overflow-y: auto; }
+  @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .popup-emoji { font-size: 60px; display: block; margin-bottom: 16px; }
+  .popup h2 { font-size: 20px; font-weight: 900; margin-bottom: 10px; }
+  .popup p { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6; }
+
+  /* Buttons */
+  .btn { display: block; width: 100%; padding: 18px 20px; border-radius: 14px; border: none; font-family: 'Noto Sans KR', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; box-shadow: 0 6px 20px rgba(255,107,53,0.4); }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 2px solid var(--border); margin-top: 10px; }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-accent { background: linear-gradient(135deg, var(--accent), #1A7FBF); color: white; box-shadow: 0 6px 20px rgba(45,156,219,0.35); }
+  .btn-success { background: linear-gradient(135deg, var(--success), #1E8449); color: white; box-shadow: 0 6px 20px rgba(39,174,96,0.4); }
+  .btn-danger { background: transparent; color: var(--danger); border: 2px solid var(--danger); font-size: 13px; padding: 10px; }
+  .btn-sm { display: inline-block; width: auto; padding: 8px 16px; font-size: 13px; border-radius: 10px; }
+
+  /* Menu buttons */
+  .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .menu-btn { background: var(--surface); border: 2.5px solid var(--border); border-radius: 14px; padding: 16px 12px; font-family: 'Noto Sans KR', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); cursor: pointer; transition: all 0.2s; text-align: center; }
+  .menu-btn:active { transform: scale(0.95); }
+  .menu-btn:hover { border-color: var(--primary); background: #FFF3EE; color: var(--primary); }
+
+  /* Restaurant pick cards */
+  .r-pick-card { border: 2.5px solid var(--border); border-radius: 16px; padding: 16px 18px; margin-bottom: 10px; display: flex; align-items: center; gap: 14px; cursor: pointer; transition: all 0.2s; background: white; }
+  .r-pick-card:active { transform: scale(0.98); }
+  .r-pick-card:hover { border-color: var(--primary); background: #FFF3EE; }
+  .r-pick-card.selected { border-color: var(--success); background: #F0FFF6; box-shadow: 0 0 0 3px rgba(39,174,96,0.2); }
+  .r-pick-card .r-icon { font-size: 32px; }
+  .r-pick-card .r-info { flex: 1; }
+  .r-pick-card .r-name { font-weight: 900; font-size: 16px; }
+  .r-pick-card .r-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .r-pick-card .r-check { font-size: 22px; }
+
+  /* Confirm today btn */
+  .confirm-today-btn { background: linear-gradient(135deg, var(--success), #1E8449); color: white; border: none; border-radius: 16px; padding: 20px; font-family: 'Black Han Sans', sans-serif; font-size: 18px; width: 100%; cursor: pointer; box-shadow: 0 6px 20px rgba(39,174,96,0.4); transition: all 0.2s; margin-top: 16px; }
+  .confirm-today-btn:active { transform: scale(0.97); }
+  .confirm-today-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Random spin btn */
+  .random-btn { background: linear-gradient(135deg, #F7971E, #FFD200); color: #1A1A2E; border: none; border-radius: 16px; padding: 20px; font-family: 'Black Han Sans', sans-serif; font-size: 20px; width: 100%; cursor: pointer; box-shadow: 0 8px 24px rgba(247,151,30,0.4); transition: all 0.2s; margin-bottom: 14px; }
+  .random-btn:active { transform: scale(0.97); }
+
+  /* Input */
+  .input { width: 100%; padding: 16px 18px; border: 2.5px solid var(--border); border-radius: 14px; font-family: 'Noto Sans KR', sans-serif; font-size: 16px; outline: none; transition: border-color 0.2s; background: var(--bg); }
+  .input:focus { border-color: var(--primary); background: white; }
+  .input::placeholder { color: #CCC; }
+
+  /* Admin nav */
+  .admin-nav { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; }
+  .nav-btn { padding: 10px 18px; border-radius: 20px; border: 2px solid var(--border); background: white; font-family: 'Noto Sans KR', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; color: var(--text-muted); transition: all 0.2s; }
+  .nav-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 12px rgba(255,107,53,0.3); }
+  .admin-panel { display: none; }
+  .admin-panel.active { display: block; animation: fadeIn 0.2s ease; }
+
+  /* Tags */
+  .tag { display: inline-flex; align-items: center; gap: 6px; background: #FFF0E8; border: 1.5px solid #FFD4BA; border-radius: 20px; padding: 6px 12px; font-size: 13px; font-weight: 700; color: var(--primary-dark); margin: 4px; }
+  .tag-del { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0; font-weight: 900; }
+  .tag-del:hover { color: var(--danger); }
+
+  /* Results */
+  .result-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .result-table th { background: #FFF0E8; padding: 12px 10px; text-align: left; font-weight: 700; color: var(--primary); border-bottom: 2px solid var(--border); }
+  .result-table td { padding: 12px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .result-table tr:last-child td { border-bottom: none; }
+  .count-badge { background: var(--primary); color: white; border-radius: 20px; padding: 3px 12px; font-weight: 700; font-size: 13px; display: inline-block; }
+  .count-zero { color: var(--text-muted); }
+  .vote-bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .vote-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 3px; }
+
+  /* Misc */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+  .row { display: flex; gap: 10px; }
+  .row .input { flex: 1; }
+  .status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--success); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .section-title { font-family: 'Black Han Sans', sans-serif; font-size: 15px; color: var(--text-muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1A1A2E; color: white; padding: 14px 24px; border-radius: 50px; font-size: 14px; font-weight: 700; z-index: 999; transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1); white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .test-banner { background: linear-gradient(90deg, #6C3483, #A569BD); color: white; text-align: center; padding: 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; display: none; }
+
+  /* Waiting */
+  .waiting-box { text-align: center; padding: 32px 0; }
+  .waiting-box .w-emoji { font-size: 64px; display: block; margin-bottom: 16px; animation: float 2s ease-in-out infinite; }
+  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .waiting-box h2 { font-weight: 900; font-size: 20px; margin-bottom: 10px; }
+  .waiting-box p { font-size: 14px; color: var(--text-muted); line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+const IS_TEST_MODE = true; // true = 시간/요일 제한 무시
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+const state = {
+  restaurants: [
+    { id: 'r1', name: '한솥도시락', icon: '🍱', menus: [
+        { id: 'm1', name: '치킨마요덮밥' }, { id: 'm2', name: '제육볶음정식' },
+        { id: 'm3', name: '참치마요덮밥' }, { id: 'm4', name: '돈까스정식' }
+    ]},
+    { id: 'r2', name: '김밥천국', icon: '🥢', menus: [
+        { id: 'm5', name: '참치김밥' }, { id: 'm6', name: '라볶이세트' },
+        { id: 'm7', name: '순대국밥' },  { id: 'm8', name: '돈까스' }
+    ]},
+    { id: 'r3', name: '맘스터치', icon: '🍔', menus: [
+        { id: 'm9', name: '싸이버거' }, { id: 'm10', name: '불싸이버거' }, { id: 'm11', name: '통새우버거' }
+    ]}
+  ],
+  todayRestaurantId: null,  // 관리자가 확정한 오늘의 식당
+  votes: {},
+  recentRestaurants: [],    // 최근 5회 선정 기록
+  adminPw: '1234'
+};
+
+const SESSION_KEY = 'lunch_voted';
+const hasVoted = () => sessionStorage.getItem(SESSION_KEY) === 'true';
+const setVoted = () => sessionStorage.setItem(SESSION_KEY, 'true');
+
+function isAccessAllowed() {
+  if (IS_TEST_MODE) return { allowed: true };
+  const now = new Date(), day = now.getDay();
+  if (day === 0 || day === 6) return { allowed: false, reason: 'weekend' };
+  const t = now.getHours() * 60 + now.getMinutes();
+  if (t < 660 || t >= 680) return { allowed: false, reason: 'time' };
+  return { allowed: true };
+}
+function genId() { return 'id_' + Math.random().toString(36).slice(2, 9); }
+function fmtTime() { const n = new Date(); return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`; }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+function getTodayR() { return state.restaurants.find(r => r.id === state.todayRestaurantId) || null; }
+</script>
+
+<!-- ══════════════ HTML ══════════════ -->
+<div id="app">
+  <div class="test-banner" id="testBanner">🧪 테스트 모드 — 시간/요일 제한 비활성화</div>
+
+  <div class="header">
+    <span class="header-emoji">🍽️</span>
+    <h1>오늘 점심<br>뭐 먹지?</h1>
+    <p>매일 11:00 ~ 11:20 투표 진행</p>
+    <span class="header-time" id="headerTime"></span>
+  </div>
+
+  <!-- Today restaurant banner -->
+  <div class="today-banner">
+    <span class="t-icon" id="bannerIcon">⏳</span>
+    <div class="t-info">
+      <div class="t-label">오늘의 식당</div>
+      <div id="bannerName" class="t-unset">관리자가 설정 중...</div>
+    </div>
+  </div>
+
+  <!-- SCREEN: BLOCKED -->
+  <div id="screenBlocked" class="screen">
+    <div class="blocked-screen">
+      <span class="blocked-emoji" id="blockedEmoji">⏰</span>
+      <h2 id="blockedTitle">투표 시간이 아닙니다</h2>
+      <p id="blockedMsg">점심 메뉴 투표는<br>평일 오전 <strong>11:00 ~ 11:20</strong>에 가능합니다.</p>
+    </div>
+  </div>
+
+  <!-- SCREEN: USER -->
+  <div id="screenUser" class="screen">
+    <!-- 식당 미설정 -->
+    <div class="card" id="cardWaiting" style="display:none">
+      <div class="waiting-box">
+        <span class="w-emoji">👨‍💼</span>
+        <h2>관리자가 오늘의 식당을<br>설정 중입니다</h2>
+        <p>잠시 후 다시 확인해주세요!<br>식당이 결정되면 메뉴가 나타납니다.</p>
+      </div>
+    </div>
+    <!-- 투표 -->
+    <div class="card" id="cardVote" style="display:none">
+      <div class="status-row">
+        <div class="status-dot"></div>
+        <span style="font-size:13px;font-weight:700;color:var(--success)">투표 진행 중</span>
+      </div>
+      <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;line-height:1.6">오늘의 식당 메뉴를 선택해주세요.<br>클릭 즉시 투표가 완료됩니다!</p>
+      <div class="menu-grid" id="menuList"></div>
+    </div>
+    <!-- 투표 완료 -->
+    <div class="card" id="cardDone" style="display:none;text-align:center">
+      <span style="font-size:60px;display:block;margin-bottom:16px">✅</span>
+      <h2 style="font-size:20px;font-weight:900;margin-bottom:10px;color:var(--success)">투표 완료!</h2>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6">이미 이 기기에서 투표하셨습니다.<br>결과는 관리자에게 문의하세요.</p>
+    </div>
+    <!-- 점심 패스 -->
+    <div class="card" id="cardPass" style="display:none;text-align:center">
+      <span style="font-size:60px;display:block;margin-bottom:16px">🥗</span>
+      <h2 style="font-weight:900;font-size:20px;margin-bottom:10px">알겠어요!</h2>
+      <p style="color:var(--text-muted);font-size:14px;line-height:1.6">오늘은 점심 참여 없이 진행됩니다.<br>내일 또 참여해주세요 😊</p>
+    </div>
+
+    <div style="text-align:center;margin-top:24px;padding:0 16px">
+      <button class="btn btn-secondary" style="opacity:0.55;font-size:13px;padding:12px" onclick="openAdminLogin()">🔒 관리자 모드</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: ADMIN -->
+  <div id="screenAdmin" class="screen">
+    <div class="card">
+      <div class="admin-nav">
+        <button class="nav-btn active" onclick="switchTab(this,'tabToday')">🏪 오늘 식당</button>
+        <button class="nav-btn" onclick="switchTab(this,'tabManage')">🍽️ 메뉴 관리</button>
+        <button class="nav-btn" onclick="switchTab(this,'tabResults')">📊 투표 결과</button>
+      </div>
+
+      <!-- TAB: 오늘 식당 -->
+      <div class="admin-panel active" id="tabToday">
+        <div class="section-title">오늘의 식당 설정</div>
+
+        <!-- 현재 설정된 식당 -->
+        <div id="todayStatus"></div>
+
+        <div class="divider"></div>
+
+        <!-- 랜덤 -->
+        <button class="random-btn" onclick="pickRandom()">🎲 랜덤으로 골라줘!</button>
+        <div id="recentHint" style="font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:16px;line-height:1.7"></div>
+
+        <div class="divider" style="margin-top:0"></div>
+
+        <!-- 직접 선택 -->
+        <div class="section-title">직접 선택</div>
+        <div id="pickList"></div>
+
+        <button class="confirm-today-btn" id="confirmBtn" onclick="confirmToday()" disabled>
+          ✅ 이 식당으로 오늘 투표 시작!
+        </button>
+
+        <div class="divider"></div>
+        <button class="btn btn-danger" onclick="logout()">← 로그아웃</button>
+      </div>
+
+      <!-- TAB: 메뉴 관리 -->
+      <div class="admin-panel" id="tabManage">
+        <div class="section-title">식당 추가</div>
+        <div class="row" style="margin-bottom:12px">
+          <input class="input" id="newRName" placeholder="식당 이름" maxlength="20">
+          <input class="input" id="newRIcon" placeholder="🍜" style="max-width:70px;text-align:center">
+        </div>
+        <button class="btn btn-accent" onclick="addRestaurant()">+ 식당 추가</button>
+        <div class="divider"></div>
+        <div id="rList"></div>
+        <div class="divider"></div>
+        <button class="btn btn-danger" onclick="logout()" style="margin-top:0">← 로그아웃</button>
+      </div>
+
+      <!-- TAB: 투표 결과 -->
+      <div class="admin-panel" id="tabResults">
+        <div class="status-row">
+          <div class="status-dot"></div>
+          <span style="font-size:13px;font-weight:700">실시간 투표 현황</span>
+          <button class="btn btn-sm btn-danger" onclick="resetVotes()" style="margin-left:auto;padding:6px 12px;font-size:12px">초기화</button>
+        </div>
+        <div id="resultsTable"></div>
+        <div class="divider"></div>
+        <button class="btn btn-danger" onclick="logout()" style="margin-top:0">← 로그아웃</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<!-- POPUP: 점심 여부 -->
+<div class="overlay" id="ovLunch">
+  <div class="popup">
+    <span class="popup-emoji">🤔</span>
+    <h2>오늘 점심<br>드실 건가요?</h2>
+    <p>식사 여부를 알려주세요.</p>
+    <button class="btn btn-primary" onclick="answerLunch(true)">😋 네, 먹을게요!</button>
+    <button class="btn btn-secondary" onclick="answerLunch(false)">🙅 오늘은 패스</button>
+  </div>
+</div>
+
+<!-- POPUP: 관리자 로그인 -->
+<div class="overlay" id="ovAdmin">
+  <div class="popup">
+    <span class="popup-emoji">🔑</span>
+    <h2>관리자 로그인</h2>
+    <p>비밀번호를 입력해주세요.</p>
+    <input class="input" type="password" id="pwInput" placeholder="비밀번호" style="margin-bottom:12px" onkeyup="if(event.key==='Enter')checkAdmin()">
+    <button class="btn btn-primary" onclick="checkAdmin()">로그인</button>
+    <button class="btn btn-secondary" onclick="closeAdminLogin()">취소</button>
+  </div>
+</div>
+
+<!-- POPUP: 투표 확인 -->
+<div class="overlay" id="ovConfirm">
+  <div class="popup">
+    <span class="popup-emoji">🍽️</span>
+    <h2 id="cvTitle"></h2>
+    <p id="cvMsg"></p>
+    <button class="btn btn-success" onclick="confirmVote()">✅ 네, 이걸로요!</button>
+    <button class="btn btn-secondary" onclick="cancelVote()">다시 고를게요</button>
+  </div>
+</div>
+
+<!-- POPUP: 중복 투표 -->
+<div class="overlay" id="ovDupe">
+  <div class="popup">
+    <span class="popup-emoji">🚫</span>
+    <h2>이미 투표하셨습니다!</h2>
+    <p>이 기기에서 이미 투표가 완료되었습니다.<br>재투표는 불가합니다.</p>
+    <button class="btn btn-primary" onclick="document.getElementById('ovDupe').classList.remove('active')">확인</button>
+  </div>
+</div>
+
+<script>
+let pendingVote = null;
+let tempPickId = null; // 관리자가 임시로 선택한 식당
+
+// ═══════════════════════════════
+//  INIT
+// ═══════════════════════════════
+function init() {
+  document.getElementById('headerTime').textContent = `현재 ${fmtTime()}`;
+  setInterval(() => { document.getElementById('headerTime').textContent = `현재 ${fmtTime()}`; }, 10000);
+  if (IS_TEST_MODE) document.getElementById('testBanner').style.display = 'block';
+
+  refreshBanner();
+
+  const access = isAccessAllowed();
+  if (!access.allowed) {
+    showScreen('screenBlocked');
+    if (access.reason === 'weekend') {
+      document.getElementById('blockedEmoji').textContent = '📅';
+      document.getElementById('blockedTitle').textContent = '평일에만 운영합니다';
+      document.getElementById('blockedMsg').innerHTML = '점심 메뉴 투표는 <strong>월~금요일</strong>에만 진행됩니다.';
+    }
+    return;
+  }
+
+  showScreen('screenUser');
+  refreshUserScreen();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// 사용자 화면: 상황별 카드 전환
+function refreshUserScreen() {
+  ['cardWaiting','cardVote','cardDone','cardPass'].forEach(id => document.getElementById(id).style.display = 'none');
+  if (hasVoted()) { document.getElementById('cardDone').style.display = 'block'; return; }
+  if (!getTodayR()) { document.getElementById('cardWaiting').style.display = 'block'; return; }
+  // 식당 설정됨 → 점심 팝업
+  document.getElementById('ovLunch').classList.add('active');
+}
+
+// 상단 배너 갱신
+function refreshBanner() {
+  const r = getTodayR();
+  document.getElementById('bannerIcon').textContent = r ? r.icon : '⏳';
+  const el = document.getElementById('bannerName');
+  if (r) { el.className = 't-name'; el.textContent = r.name; }
+  else { el.className = 't-unset'; el.textContent = '관리자가 설정 중...'; }
+}
+
+// ═══════════════════════════════
+//  USER: Lunch popup
+// ═══════════════════════════════
+function answerLunch(yes) {
+  document.getElementById('ovLunch').classList.remove('active');
+  if (!yes) { document.getElementById('cardPass').style.display = 'block'; return; }
+  document.getElementById('cardVote').style.display = 'block';
+  renderMenuList();
+}
+
+function renderMenuList() {
+  const r = getTodayR();
+  const c = document.getElementById('menuList');
+  if (!r || !r.menus.length) {
+    c.innerHTML = '<p style="grid-column:span 2;text-align:center;color:var(--text-muted);font-size:14px;padding:20px 0">메뉴가 없습니다. 관리자에게 문의하세요.</p>';
+    return;
+  }
+  c.innerHTML = r.menus.map(m =>
+    `<button class="menu-btn" onclick="startVote('${r.id}','${r.name}','${m.id}','${m.name}')">${m.name}</button>`
+  ).join('');
+}
+
+// ═══════════════════════════════
+//  USER: Vote flow
+// ═══════════════════════════════
+function startVote(rId, rName, mId, mName) {
+  if (hasVoted()) { document.getElementById('ovDupe').classList.add('active'); return; }
+  pendingVote = { rId, rName, mId, mName };
+  document.getElementById('cvTitle').textContent = rName;
+  document.getElementById('cvMsg').textContent = `"${mName}" 으로 투표할까요?`;
+  document.getElementById('ovConfirm').classList.add('active');
+}
+function confirmVote() {
+  document.getElementById('ovConfirm').classList.remove('active');
+  if (!pendingVote) return;
+  state.votes[pendingVote.mId] = (state.votes[pendingVote.mId] || 0) + 1;
+  setVoted();
+  pendingVote = null;
+  ['cardWaiting','cardVote','cardPass'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('cardDone').style.display = 'block';
+  showToast('🎉 투표 완료! 맛있는 점심 되세요 😋');
+}
+function cancelVote() { document.getElementById('ovConfirm').classList.remove('active'); pendingVote = null; }
+
+// ═══════════════════════════════
+//  ADMIN: Login
+// ═══════════════════════════════
+function openAdminLogin() {
+  document.getElementById('pwInput').value = '';
+  document.getElementById('ovAdmin').classList.add('active');
+  setTimeout(() => document.getElementById('pwInput').focus(), 300);
+}
+function closeAdminLogin() { document.getElementById('ovAdmin').classList.remove('active'); }
+function checkAdmin() {
+  if (document.getElementById('pwInput').value === state.adminPw) {
+    closeAdminLogin();
+    showScreen('screenAdmin');
+    tempPickId = state.todayRestaurantId; // 현재 설정값으로 초기화
+    renderTodayTab();
+    renderRList();
+    renderResults();
+  } else {
+    showToast('❌ 비밀번호가 틀렸습니다');
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+function logout() {
+  showScreen('screenUser');
+  refreshBanner();
+  refreshUserScreen();
+}
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+  if (tabId === 'tabResults') renderResults();
+  if (tabId === 'tabToday') renderTodayTab();
+}
+
+// ═══════════════════════════════
+//  ADMIN: Today restaurant tab
+// ═══════════════════════════════
+function renderTodayTab() {
+  renderTodayStatus();
+  renderPickList();
+  renderRecentHint();
+}
+
+function renderTodayStatus() {
+  const el = document.getElementById('todayStatus');
+  const r = getTodayR();
+  if (!r) {
+    el.innerHTML = `<div style="background:#FFF8F0;border:2px dashed var(--border);border-radius:14px;padding:16px;text-align:center;color:var(--text-muted);font-size:14px;">아직 오늘의 식당이 설정되지 않았습니다.</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div style="background:linear-gradient(135deg,#F0FFF6,#D5F5E3);border:2px solid var(--success);border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:28px">${r.icon}</span>
+      <div style="flex:1">
+        <div style="font-size:11px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:1px">현재 설정됨</div>
+        <div style="font-family:'Black Han Sans',sans-serif;font-size:18px;color:#1E8449;margin-top:2px">${r.name}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${r.menus.map(m=>m.name).join(' · ')}</div>
+      </div>
+      <button onclick="clearToday()" style="background:none;border:1.5px solid var(--danger);color:var(--danger);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap">해제</button>
+    </div>
+  `;
+}
+
+function renderPickList() {
+  const c = document.getElementById('pickList');
+  if (!state.restaurants.length) {
+    c.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:14px;padding:12px 0">등록된 식당이 없습니다.<br>메뉴 관리 탭에서 추가해주세요.</p>';
+    document.getElementById('confirmBtn').disabled = true;
+    return;
+  }
+  c.innerHTML = state.restaurants.map(r => {
+    const sel = r.id === tempPickId;
+    // 최근 몇 번째인지 표시
+    const recentIdx = [...state.recentRestaurants].reverse().indexOf(r.id);
+    const recentTag = recentIdx >= 0
+      ? `<span style="font-size:11px;color:var(--danger);font-weight:700;margin-left:6px;background:#FFE8E8;border-radius:10px;padding:2px 7px">최근 ${recentIdx+1}회전</span>`
+      : '';
+    return `
+      <div class="r-pick-card ${sel?'selected':''}" onclick="selectPick('${r.id}')">
+        <span class="r-icon">${r.icon}</span>
+        <div class="r-info">
+          <div class="r-name">${r.name}${recentTag}</div>
+          <div class="r-sub">${r.menus.map(m=>m.name).join(', ') || '메뉴 없음'}</div>
+        </div>
+        <span class="r-check">${sel ? '✅' : '⬜'}</span>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('confirmBtn').disabled = !tempPickId;
+}
+
+function selectPick(id) {
+  tempPickId = (tempPickId === id) ? null : id;
+  renderPickList();
+}
+
+function confirmToday() {
+  if (!tempPickId) return;
+  const r = state.restaurants.find(r => r.id === tempPickId);
+  if (!r) return;
+  const changed = state.todayRestaurantId !== tempPickId;
+  state.todayRestaurantId = tempPickId;
+  if (changed) {
+    // 이력 갱신 & 투표 초기화
+    state.recentRestaurants = state.recentRestaurants.filter(id => id !== r.id);
+    state.recentRestaurants.push(r.id);
+    if (state.recentRestaurants.length > 5) state.recentRestaurants.shift();
+    state.votes = {};
+  }
+  refreshBanner();
+  renderTodayTab();
+  showToast(`✅ 오늘의 식당: ${r.icon} ${r.name} — 투표 시작!`);
+}
+
+function clearToday() {
+  if (!confirm('오늘의 식당을 해제할까요? 투표도 초기화됩니다.')) return;
+  state.todayRestaurantId = null;
+  tempPickId = null;
+  state.votes = {};
+  refreshBanner();
+  renderTodayTab();
+  showToast('🔄 오늘의 식당이 해제되었습니다');
+}
+
+function pickRandom() {
+  if (!state.restaurants.length) { showToast('등록된 식당이 없습니다'); return; }
+  // 최근 5회 제외
+  const eligible = state.restaurants.filter(r => !state.recentRestaurants.includes(r.id));
+  const pool = eligible.length > 0 ? eligible : state.restaurants;
+  const picked = pool[Math.floor(Math.random() * pool.length)];
+  tempPickId = picked.id;
+  renderPickList();
+  document.getElementById('confirmBtn').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  showToast(`🎲 추천: ${picked.icon} ${picked.name} — 아래에서 확정하세요!`);
+}
+
+function renderRecentHint() {
+  const el = document.getElementById('recentHint');
+  if (!state.recentRestaurants.length) { el.textContent = ''; return; }
+  const names = [...state.recentRestaurants].reverse().map((id, i) => {
+    const r = state.restaurants.find(r => r.id === id);
+    return `<span style="font-weight:700">${i+1}회전</span> ${r ? r.icon+r.name : '(삭제됨)'}`;
+  }).join(' &rarr; ');
+  el.innerHTML = `최근 이력: ${names}`;
+}
+
+// ═══════════════════════════════
+//  ADMIN: Menu management
+// ═══════════════════════════════
+function renderRList() {
+  const c = document.getElementById('rList');
+  if (!state.restaurants.length) {
+    c.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px 0">등록된 식당이 없습니다.</p>';
+    return;
+  }
+  c.innerHTML = state.restaurants.map(r => `
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-weight:900;font-size:16px">${r.icon} ${r.name}</span>
+        <button class="btn btn-danger btn-sm" onclick="deleteR('${r.id}')" style="padding:6px 12px;font-size:12px">삭제</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+        ${r.menus.map(m => `<span class="tag">${m.name}<button class="tag-del" onclick="deleteM('${r.id}','${m.id}')">×</button></span>`).join('')}
+        ${!r.menus.length ? '<span style="color:var(--text-muted);font-size:13px">메뉴 없음</span>' : ''}
+      </div>
+      <div class="row">
+        <input class="input" id="mi_${r.id}" placeholder="메뉴 이름" onkeyup="if(event.key==='Enter')addM('${r.id}')">
+        <button class="btn btn-sm btn-primary" onclick="addM('${r.id}')" style="white-space:nowrap">+ 추가</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+  `).join('');
+}
+
+function addRestaurant() {
+  const name = document.getElementById('newRName').value.trim();
+  const icon = document.getElementById('newRIcon').value.trim() || '🍽️';
+  if (!name) { showToast('식당 이름을 입력해주세요'); return; }
+  state.restaurants.push({ id: genId(), name, icon, menus: [] });
+  document.getElementById('newRName').value = '';
+  document.getElementById('newRIcon').value = '';
+  renderRList();
+  showToast('✅ 식당이 추가되었습니다');
+}
+function deleteR(id) {
+  if (!confirm('이 식당을 삭제할까요?')) return;
+  if (state.todayRestaurantId === id) { state.todayRestaurantId = null; tempPickId = null; state.votes = {}; refreshBanner(); }
+  state.restaurants = state.restaurants.filter(r => r.id !== id);
+  state.recentRestaurants = state.recentRestaurants.filter(rid => rid !== id);
+  renderRList();
+  showToast('🗑️ 삭제되었습니다');
+}
+function addM(rid) {
+  const input = document.getElementById('mi_' + rid);
+  const name = input.value.trim();
+  if (!name) { showToast('메뉴 이름을 입력해주세요'); return; }
+  const r = state.restaurants.find(r => r.id === rid);
+  if (!r) return;
+  r.menus.push({ id: genId(), name });
+  input.value = '';
+  renderRList();
+  showToast('✅ 메뉴가 추가되었습니다');
+}
+function deleteM(rid, mid) {
+  const r = state.restaurants.find(r => r.id === rid);
+  if (r) { r.menus = r.menus.filter(m => m.id !== mid); renderRList(); }
+}
+
+// ═══════════════════════════════
+//  ADMIN: Results
+// ═══════════════════════════════
+function renderResults() {
+  const c = document.getElementById('resultsTable');
+  const r = getTodayR();
+  if (!r) { c.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px 0">오늘의 식당이 설정되지 않았습니다.</p>'; return; }
+  const total = Object.values(state.votes).reduce((a,b)=>a+b,0);
+  const sorted = [...r.menus].sort((a,b)=>(state.votes[b.id]||0)-(state.votes[a.id]||0));
+  c.innerHTML = `
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:20px">${r.icon}</span>
+      <span style="font-weight:900">${r.name}</span>
+      <span style="margin-left:auto;font-size:13px;color:var(--text-muted)">총 <strong style="color:var(--primary)">${total}명</strong></span>
+    </div>
+    <table class="result-table">
+      <thead><tr><th>메뉴</th><th style="text-align:right">투표</th></tr></thead>
+      <tbody>
+        ${sorted.map(m => {
+          const cnt = state.votes[m.id] || 0;
+          const pct = total > 0 ? Math.round(cnt/total*100) : 0;
+          return `<tr>
+            <td>
+              <div style="font-weight:700;font-size:14px">${m.name}</div>
+              <div class="vote-bar"><div class="vote-bar-fill" style="width:${pct}%"></div></div>
+            </td>
+            <td style="text-align:right;vertical-align:top;padding-top:14px">
+              ${cnt>0?`<span class="count-badge">${cnt}명</span>`:`<span class="count-zero">0</span>`}
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+function resetVotes() {
+  if (!confirm('투표 결과를 초기화할까요?')) return;
+  state.votes = {};
+  renderResults();
+  showToast('🔄 초기화되었습니다');
+}
+
+// ── Start ──
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
