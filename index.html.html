@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🍱 점심 메뉴 투표</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Black+Han+Sans&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FFF8F0;
+    --surface: #FFFFFF;
+    --primary: #FF6B35;
+    --primary-dark: #E8521D;
+    --secondary: #FFB347;
+    --accent: #2D9CDB;
+    --text: #1A1A2E;
+    --text-muted: #888;
+    --border: #F0E0D0;
+    --success: #27AE60;
+    --danger: #EB5757;
+    --shadow: 0 4px 24px rgba(255,107,53,0.15);
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; top: -50%; right: -20%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(255,179,71,0.2) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+  body::after  { content: ''; position: fixed; bottom: -30%; left: -10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(255,107,53,0.12) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+
+  #app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; min-height: 100vh; padding: 0 0 60px; }
+
+  /* ── Header ── */
+  .header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 28px 24px 28px; position: relative; overflow: hidden; }
+  .header::before { content: '🍱'; position: absolute; font-size: 120px; right: -20px; top: -20px; opacity: 0.15; transform: rotate(15deg); }
+  .header-emoji { font-size: 32px; margin-bottom: 6px; display: block; }
+  .header h1 { font-family: 'Black Han Sans', sans-serif; font-size: 26px; letter-spacing: -0.5px; line-height: 1.2; }
+  .header-sub { font-size: 13px; opacity: 0.85; margin-top: 5px; }
+  .header-time { display: inline-block; background: rgba(255,255,255,0.2); border-radius: 20px; padding: 4px 12px; font-size: 12px; margin-top: 8px; backdrop-filter: blur(4px); }
+
+  /* ── Week strip ── */
+  .week-strip { background: #1A1A2E; padding: 14px 16px; display: flex; gap: 8px; overflow-x: auto; }
+  .week-strip::-webkit-scrollbar { display: none; }
+  .day-chip { flex: 1; min-width: 52px; border-radius: 12px; padding: 10px 6px; text-align: center; cursor: default; transition: all 0.2s; background: rgba(255,255,255,0.06); }
+  .day-chip .dc-day { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.45); letter-spacing: 0.5px; }
+  .day-chip .dc-date { font-size: 13px; font-weight: 900; color: rgba(255,255,255,0.5); margin: 2px 0; }
+  .day-chip .dc-icon { font-size: 18px; }
+  .day-chip .dc-name { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 2px; line-height: 1.2; word-break: keep-all; }
+  .day-chip.is-today { background: var(--primary); box-shadow: 0 4px 14px rgba(255,107,53,0.5); }
+  .day-chip.is-today .dc-day  { color: rgba(255,255,255,0.85); }
+  .day-chip.is-today .dc-date { color: white; font-size: 15px; }
+  .day-chip.is-today .dc-name { color: rgba(255,255,255,0.9); }
+  .day-chip.has-restaurant { background: rgba(255,255,255,0.12); }
+  .day-chip.has-restaurant .dc-day  { color: rgba(255,255,255,0.6); }
+  .day-chip.has-restaurant .dc-date { color: rgba(255,255,255,0.75); }
+  .day-chip.has-restaurant .dc-name { color: rgba(255,255,255,0.6); }
+
+  /* ── Cards ── */
+  .card { background: var(--surface); border-radius: var(--radius); padding: 24px; margin: 16px 16px 0; box-shadow: var(--shadow); }
+
+  /* ── Screens ── */
+  .screen { display: none; animation: fadeIn 0.3s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Blocked ── */
+  .blocked-box { text-align: center; padding: 50px 32px 32px; }
+  .blocked-emoji { font-size: 64px; display: block; margin-bottom: 16px; }
+  .blocked-box h2 { font-size: 20px; font-weight: 900; margin-bottom: 10px; color: var(--primary); }
+  .blocked-box p { font-size: 14px; color: var(--text-muted); line-height: 1.7; }
+
+  /* ── Overlays ── */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 100; backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 20px; }
+  .overlay.active { display: flex; }
+  .popup { background: white; border-radius: 28px; padding: 30px 26px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.25); animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1); max-height: 88vh; overflow-y: auto; }
+  @keyframes popIn { from { transform: scale(0.82); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .popup-emoji { font-size: 54px; display: block; margin-bottom: 14px; }
+  .popup h2 { font-size: 20px; font-weight: 900; margin-bottom: 8px; }
+  .popup p { font-size: 14px; color: var(--text-muted); margin-bottom: 22px; line-height: 1.65; }
+
+  /* ── Buttons ── */
+  .btn { display: block; width: 100%; padding: 17px 20px; border-radius: 14px; border: none; font-family: 'Noto Sans KR', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary  { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; box-shadow: 0 6px 20px rgba(255,107,53,0.4); }
+  .btn-secondary{ background: var(--bg); color: var(--text); border: 2px solid var(--border); margin-top: 10px; }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-accent   { background: linear-gradient(135deg, var(--accent), #1A7FBF); color: white; box-shadow: 0 6px 20px rgba(45,156,219,0.35); }
+  .btn-success  { background: linear-gradient(135deg, var(--success), #1E8449); color: white; box-shadow: 0 6px 20px rgba(39,174,96,0.4); }
+  .btn-danger   { background: transparent; color: var(--danger); border: 2px solid var(--danger); font-size: 13px; padding: 10px; }
+  .btn-gold     { background: linear-gradient(135deg, #F7971E, #FFD200); color: #1A1A2E; border: none; box-shadow: 0 6px 20px rgba(247,151,30,0.4); }
+  .btn-sm { display: inline-block; width: auto; padding: 8px 14px; font-size: 13px; border-radius: 10px; }
+  .btn-xs { display: inline-block; width: auto; padding: 5px 10px; font-size: 12px; border-radius: 8px; }
+
+  /* ── Menu vote buttons ── */
+  .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .menu-btn { background: var(--surface); border: 2.5px solid var(--border); border-radius: 14px; padding: 16px 10px; font-family: 'Noto Sans KR', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); cursor: pointer; transition: all 0.2s; text-align: center; line-height: 1.3; }
+  .menu-btn:active { transform: scale(0.95); }
+  .menu-btn:hover  { border-color: var(--primary); background: #FFF3EE; color: var(--primary); }
+
+  /* ── Weekly plan (user view) ── */
+  .week-day-row { border: 2px solid var(--border); border-radius: 16px; padding: 16px 18px; margin-bottom: 12px; transition: all 0.2s; }
+  .week-day-row.today { border-color: var(--primary); background: #FFF8F5; box-shadow: 0 4px 16px rgba(255,107,53,0.15); }
+  .week-day-row.no-data { opacity: 0.5; }
+  .wdr-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0; }
+  .wdr-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: var(--border); color: var(--text-muted); }
+  .wdr-badge.today { background: var(--primary); color: white; }
+  .wdr-day   { font-family: 'Black Han Sans', sans-serif; font-size: 16px; }
+  .wdr-rname { font-weight: 700; font-size: 15px; margin-left: auto; }
+  .wdr-icon  { font-size: 20px; }
+  .wdr-menus { margin-top: 12px; }
+
+  /* ── Restaurant pick cards (admin) ── */
+  .r-pick-card { border: 2.5px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s; background: white; }
+  .r-pick-card:active { transform: scale(0.98); }
+  .r-pick-card:hover   { border-color: var(--primary); background: #FFF3EE; }
+  .r-pick-card.selected { border-color: var(--success); background: #F0FFF6; box-shadow: 0 0 0 3px rgba(39,174,96,0.15); }
+  .r-pick-card .rp-icon  { font-size: 28px; }
+  .r-pick-card .rp-info  { flex: 1; }
+  .r-pick-card .rp-name  { font-weight: 900; font-size: 15px; }
+  .r-pick-card .rp-sub   { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .r-pick-card .rp-check { font-size: 20px; }
+
+  /* ── Input ── */
+  .input { width: 100%; padding: 15px 16px; border: 2.5px solid var(--border); border-radius: 14px; font-family: 'Noto Sans KR', sans-serif; font-size: 16px; outline: none; transition: border-color 0.2s; background: var(--bg); }
+  .input:focus { border-color: var(--primary); background: white; }
+  .input::placeholder { color: #CCC; }
+
+  /* ── Tags ── */
+  .tag { display: inline-flex; align-items: center; gap: 5px; background: #FFF0E8; border: 1.5px solid #FFD4BA; border-radius: 20px; padding: 5px 11px; font-size: 13px; font-weight: 700; color: var(--primary-dark); margin: 3px; }
+  .tag-del { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0; }
+  .tag-del:hover { color: var(--danger); }
+
+  /* ── Admin nav ── */
+  .admin-nav { display: flex; gap: 7px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 2px; }
+  .admin-nav::-webkit-scrollbar { display: none; }
+  .nav-btn { padding: 9px 16px; border-radius: 20px; border: 2px solid var(--border); background: white; font-family: 'Noto Sans KR', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; color: var(--text-muted); transition: all 0.2s; }
+  .nav-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 12px rgba(255,107,53,0.3); }
+  .admin-panel { display: none; }
+  .admin-panel.active { display: block; animation: fadeIn 0.2s ease; }
+
+  /* ── Result table ── */
+  .result-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .result-table th { background: #FFF0E8; padding: 11px 10px; text-align: left; font-weight: 700; color: var(--primary); border-bottom: 2px solid var(--border); }
+  .result-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .result-table tr:last-child td { border-bottom: none; }
+  .count-badge { background: var(--primary); color: white; border-radius: 20px; padding: 3px 11px; font-weight: 700; font-size: 13px; display: inline-block; }
+  .count-zero  { color: var(--text-muted); }
+  .vote-bar { height: 5px; background: var(--border); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .vote-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 3px; }
+
+  /* ── Section title ── */
+  .section-title { font-family: 'Black Han Sans', sans-serif; font-size: 14px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ── Misc ── */
+  .divider { height: 1px; background: var(--border); margin: 18px 0; }
+  .row { display: flex; gap: 10px; }
+  .row .input { flex: 1; }
+  .status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--success); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1A1A2E; color: white; padding: 13px 22px; border-radius: 50px; font-size: 14px; font-weight: 700; z-index: 999; transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1); white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .test-banner { background: linear-gradient(90deg, #6C3483, #A569BD); color: white; text-align: center; padding: 7px; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; display: none; }
+
+  /* ── Waiting ── */
+  .waiting-box { text-align: center; padding: 28px 0; }
+  .waiting-box .w-emoji { font-size: 58px; display: block; margin-bottom: 14px; animation: float 2s ease-in-out infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  .waiting-box h2 { font-weight: 900; font-size: 18px; margin-bottom: 8px; }
+  .waiting-box p { font-size: 14px; color: var(--text-muted); line-height: 1.7; }
+
+  /* ── Admin week schedule ── */
+  .week-admin-row { border: 2px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+  .week-admin-row.set { border-color: rgba(39,174,96,0.4); background: #FAFFF8; }
+  .war-header { display: flex; align-items: center; gap: 10px; }
+  .war-day { font-family: 'Black Han Sans', sans-serif; font-size: 15px; min-width: 28px; }
+  .war-badge { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px; background: var(--border); color: var(--text-muted); }
+  .war-badge.today-badge { background: var(--primary); color: white; }
+  .war-rname { flex: 1; font-weight: 700; font-size: 14px; text-align: right; color: var(--success); }
+  .war-unset { flex: 1; font-size: 13px; color: var(--text-muted); text-align: right; font-style: italic; }
+  .war-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+  .confirm-week-btn { background: linear-gradient(135deg, var(--success), #1E8449); color: white; border: none; border-radius: 14px; padding: 18px; font-family: 'Black Han Sans', sans-serif; font-size: 17px; width: 100%; cursor: pointer; box-shadow: 0 6px 20px rgba(39,174,96,0.4); transition: all 0.2s; margin-top: 4px; }
+  .confirm-week-btn:active { transform: scale(0.97); }
+  .confirm-week-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .random-btn { background: linear-gradient(135deg, #F7971E, #FFD200); color: #1A1A2E; border: none; border-radius: 14px; padding: 14px; font-family: 'Black Han Sans', sans-serif; font-size: 16px; width: 100%; cursor: pointer; box-shadow: 0 6px 20px rgba(247,151,30,0.35); transition: all 0.2s; }
+  .random-btn:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+
+<script>
+// ════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════
+const IS_TEST_MODE = true; // true = 시간/요일 제한 무시
+
+// ════════════════════════════════════
+//  CONSTANTS
+// ════════════════════════════════════
+const DAY_NAMES   = ['일','월','화','수','목','금','토'];
+const DAY_LABELS  = ['월','화','수','목','금']; // 인덱스 0=월(1) ~ 4=금(5)
+const LS_KEY      = 'lunch_app_data';
+const SESSION_KEY = 'lunch_voted';
+
+// ════════════════════════════════════
+//  STATE  (localStorage 로 영구 저장)
+// ════════════════════════════════════
+function defaultState() {
+  return {
+    restaurants: [
+      { id: 'r1', name: '한솥도시락', icon: '🍱', menus: [
+          { id: 'm1', name: '치킨마요덮밥' }, { id: 'm2', name: '제육볶음정식' },
+          { id: 'm3', name: '참치마요덮밥' }, { id: 'm4', name: '돈까스정식' }
+      ]},
+      { id: 'r2', name: '김밥천국', icon: '🥢', menus: [
+          { id: 'm5', name: '참치김밥' }, { id: 'm6', name: '라볶이세트' },
+          { id: 'm7', name: '순대국밥' }, { id: 'm8', name: '돈까스' }
+      ]},
+      { id: 'r3', name: '맘스터치', icon: '🍔', menus: [
+          { id: 'm9', name: '싸이버거' }, { id: 'm10', name: '불싸이버거' }, { id: 'm11', name: '통새우버거' }
+      ]}
+    ],
+    // 주간 식단: weekPlan[weekKey][dayIdx(0=월~4=금)] = restaurantId | null
+    weekPlan: {},
+    // 투표: votes[weekKey][dayIdx][menuId] = count
+    votes: {},
+    adminPw: '1234'
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return defaultState();
+    const saved = JSON.parse(raw);
+    // adminPw 가 없으면 기본값 보정
+    if (!saved.adminPw) saved.adminPw = '1234';
+    if (!saved.weekPlan) saved.weekPlan = {};
+    if (!saved.votes)    saved.votes    = {};
+    return saved;
+  } catch(e) { return defaultState(); }
+}
+
+function saveState() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+let state = loadState();
+
+// ════════════════════════════════════
+//  DATE UTILS
+// ════════════════════════════════════
+// 이번 주 월요일 기준 YYYY-MM-DD 를 weekKey 로 사용
+function getWeekKey(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=일
+  const diff = (day === 0) ? -6 : 1 - day; // 월요일로 보정
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function getTodayDayIdx() {
+  // 0=월, 1=화, 2=수, 3=목, 4=금
+  const day = new Date().getDay();
+  return day - 1; // 1(월)→0, 5(금)→4
+}
+
+function getWeekDates() {
+  // 이번 주 월~금 날짜 객체 배열
+  const now = new Date();
+  const monday = new Date(now);
+  const day = now.getDay();
+  const diff = (day === 0) ? -6 : 1 - day;
+  monday.setDate(now.getDate() + diff);
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+function isAccessAllowed() {
+  if (IS_TEST_MODE) return { allowed: true };
+  const now = new Date();
+  const day = now.getDay();
+  if (day === 0 || day === 6) return { allowed: false, reason: 'weekend' };
+  const t = now.getHours() * 60 + now.getMinutes();
+  if (t < 660 || t >= 680) return { allowed: false, reason: 'time' };
+  return { allowed: true };
+}
+
+// ════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════
+function genId() { return 'id_' + Math.random().toString(36).slice(2, 9); }
+function fmtTime() { const n = new Date(); return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`; }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+function hasVoted()  { return sessionStorage.getItem(SESSION_KEY) === 'true'; }
+function setVoted()  { sessionStorage.setItem(SESSION_KEY, 'true'); }
+
+function getTodayRestaurantId() {
+  const wk = getWeekKey(new Date());
+  const di = getTodayDayIdx();
+  return (state.weekPlan[wk] && state.weekPlan[wk][di]) || null;
+}
+function getTodayRestaurant() {
+  const id = getTodayRestaurantId();
+  return id ? state.restaurants.find(r => r.id === id) || null : null;
+}
+function getRestaurantForDay(wk, di) {
+  const id = (state.weekPlan[wk] && state.weekPlan[wk][di]) || null;
+  return id ? state.restaurants.find(r => r.id === id) || null : null;
+}
+function getVotesForDay(wk, di) {
+  return (state.votes[wk] && state.votes[wk][di]) || {};
+}
+</script>
+
+<!-- ══════════════ HTML ══════════════ -->
+<div id="app">
+  <div class="test-banner" id="testBanner">🧪 테스트 모드 — 시간/요일 제한 비활성화</div>
+
+  <!-- Header -->
+  <div class="header">
+    <span class="header-emoji">🍽️</span>
+    <h1>이번 주 점심<br>식단표</h1>
+    <p class="header-sub">매일 11:00 ~ 11:20 메뉴 투표 진행</p>
+    <span class="header-time" id="headerTime"></span>
+  </div>
+
+  <!-- Week strip -->
+  <div class="week-strip" id="weekStrip"></div>
+
+  <!-- ── SCREEN: BLOCKED ── -->
+  <div id="screenBlocked" class="screen">
+    <div class="blocked-box">
+      <span class="blocked-emoji" id="blockedEmoji">⏰</span>
+      <h2 id="blockedTitle">투표 시간이 아닙니다</h2>
+      <p id="blockedMsg">점심 메뉴 투표는<br>평일 오전 <strong>11:00 ~ 11:20</strong>에 가능합니다.</p>
+      <div style="margin-top:28px">
+        <button class="btn btn-secondary" style="max-width:200px;margin:0 auto;font-size:13px;padding:12px;opacity:0.65" onclick="openAdminLogin()">🔒 관리자 로그인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: USER ── -->
+  <div id="screenUser" class="screen">
+
+    <!-- 식당 미설정 -->
+    <div class="card" id="cardWaiting" style="display:none">
+      <div class="waiting-box">
+        <span class="w-emoji">👨‍💼</span>
+        <h2>오늘 식당을<br>설정 중입니다</h2>
+        <p>관리자가 오늘의 식당을 설정하면<br>메뉴가 나타납니다.</p>
+      </div>
+    </div>
+
+    <!-- 주간 식단표 + 투표 -->
+    <div id="cardWeekPlan" style="display:none">
+      <div id="weekPlanList"></div>
+    </div>
+
+    <!-- 투표 완료 -->
+    <div class="card" id="cardDone" style="display:none;text-align:center">
+      <span style="font-size:56px;display:block;margin-bottom:14px">✅</span>
+      <h2 style="font-size:19px;font-weight:900;margin-bottom:8px;color:var(--success)">투표 완료!</h2>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.65">오늘의 투표가 완료되었습니다.<br>맛있는 점심 되세요 😋</p>
+    </div>
+
+    <!-- 점심 패스 -->
+    <div class="card" id="cardPass" style="display:none;text-align:center">
+      <span style="font-size:56px;display:block;margin-bottom:14px">🥗</span>
+      <h2 style="font-weight:900;font-size:19px;margin-bottom:8px">알겠어요!</h2>
+      <p style="color:var(--text-muted);font-size:14px;line-height:1.65">오늘은 점심 참여 없이 진행됩니다.<br>내일 또 참여해주세요 😊</p>
+    </div>
+
+    <div style="text-align:center;margin-top:20px;padding:0 16px">
+      <button class="btn btn-secondary" style="opacity:0.5;font-size:13px;padding:11px" onclick="openAdminLogin()">🔒 관리자 모드</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: ADMIN ── -->
+  <div id="screenAdmin" class="screen">
+    <div class="card">
+      <div class="admin-nav">
+        <button class="nav-btn active" onclick="switchTab(this,'tabWeek')">📅 주간 식단</button>
+        <button class="nav-btn" onclick="switchTab(this,'tabManage')">🍽️ 메뉴 관리</button>
+        <button class="nav-btn" onclick="switchTab(this,'tabResults')">📊 투표 결과</button>
+      </div>
+
+      <!-- TAB: 주간 식단 -->
+      <div class="admin-panel active" id="tabWeek">
+        <div class="section-title">이번 주 식당 설정</div>
+        <div id="weekAdminList"></div>
+        <div class="divider"></div>
+        <button class="btn btn-danger" onclick="logout()" style="margin-top:0">← 로그아웃</button>
+      </div>
+
+      <!-- TAB: 메뉴 관리 -->
+      <div class="admin-panel" id="tabManage">
+        <div class="section-title">식당 추가</div>
+        <div class="row" style="margin-bottom:12px">
+          <input class="input" id="newRName" placeholder="식당 이름" maxlength="20">
+          <input class="input" id="newRIcon" placeholder="🍜" style="max-width:66px;text-align:center">
+        </div>
+        <button class="btn btn-accent" onclick="addRestaurant()">+ 식당 추가</button>
+        <div class="divider"></div>
+        <div id="rList"></div>
+        <div class="divider"></div>
+        <button class="btn btn-danger" onclick="logout()" style="margin-top:0">← 로그아웃</button>
+      </div>
+
+      <!-- TAB: 투표 결과 -->
+      <div class="admin-panel" id="tabResults">
+        <div class="status-row">
+          <div class="status-dot"></div>
+          <span style="font-size:13px;font-weight:700">실시간 투표 현황</span>
+          <button class="btn btn-sm btn-danger" onclick="resetTodayVotes()" style="margin-left:auto;padding:6px 12px;font-size:12px">오늘 초기화</button>
+        </div>
+        <div id="resultsTable"></div>
+        <div class="divider"></div>
+        <button class="btn btn-danger" onclick="logout()" style="margin-top:0">← 로그아웃</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<!-- POPUP: 점심 여부 -->
+<div class="overlay" id="ovLunch">
+  <div class="popup">
+    <span class="popup-emoji">🤔</span>
+    <h2>오늘 점심<br>드실 건가요?</h2>
+    <p>식사 여부를 알려주세요.</p>
+    <button class="btn btn-primary" onclick="answerLunch(true)">😋 네, 먹을게요!</button>
+    <button class="btn btn-secondary" onclick="answerLunch(false)">🙅 오늘은 패스</button>
+  </div>
+</div>
+
+<!-- POPUP: 관리자 로그인 -->
+<div class="overlay" id="ovAdmin">
+  <div class="popup">
+    <span class="popup-emoji">🔑</span>
+    <h2>관리자 로그인</h2>
+    <p>비밀번호를 입력해주세요.</p>
+    <input class="input" type="password" id="pwInput" placeholder="비밀번호" style="margin-bottom:12px" onkeyup="if(event.key==='Enter')checkAdmin()">
+    <button class="btn btn-primary" onclick="checkAdmin()">로그인</button>
+    <button class="btn btn-secondary" onclick="closeAdminLogin()">취소</button>
+  </div>
+</div>
+
+<!-- POPUP: 투표 확인 -->
+<div class="overlay" id="ovConfirm">
+  <div class="popup">
+    <span class="popup-emoji">🍽️</span>
+    <h2 id="cvTitle"></h2>
+    <p id="cvMsg"></p>
+    <button class="btn btn-success" onclick="confirmVote()">✅ 네, 이걸로요!</button>
+    <button class="btn btn-secondary" onclick="cancelVote()">다시 고를게요</button>
+  </div>
+</div>
+
+<!-- POPUP: 중복 투표 -->
+<div class="overlay" id="ovDupe">
+  <div class="popup">
+    <span class="popup-emoji">🚫</span>
+    <h2>이미 투표하셨습니다!</h2>
+    <p>이 기기에서 이미 오늘의 투표가<br>완료되었습니다.</p>
+    <button class="btn btn-primary" onclick="document.getElementById('ovDupe').classList.remove('active')">확인</button>
+  </div>
+</div>
+
+<!-- POPUP: 식당 선택 (요일별) -->
+<div class="overlay" id="ovDayPick">
+  <div class="popup" style="text-align:left">
+    <div style="text-align:center;margin-bottom:18px">
+      <span style="font-size:40px" id="dpDayEmoji">📅</span>
+      <h2 style="margin-top:8px" id="dpDayTitle">요일 식당 선택</h2>
+      <p style="margin-bottom:0" id="dpDayDesc">이 요일의 식당을 선택하세요.</p>
+    </div>
+    <!-- Random -->
+    <button class="random-btn" onclick="pickDayRandom()" style="margin-bottom:12px;font-size:15px;padding:14px">🎲 랜덤 선택</button>
+    <div id="dpPickList"></div>
+    <button class="btn btn-secondary" onclick="closeDayPick()" style="margin-top:4px">취소</button>
+  </div>
+</div>
+
+<script>
+let pendingVote   = null;
+let dpTargetDayIdx = null; // 요일 선택 팝업: 편집 중인 dayIdx
+
+// ════════════════════════════════════
+//  INIT
+// ════════════════════════════════════
+function init() {
+  document.getElementById('headerTime').textContent = `현재 ${fmtTime()}`;
+  setInterval(() => { document.getElementById('headerTime').textContent = `현재 ${fmtTime()}`; }, 10000);
+  if (IS_TEST_MODE) document.getElementById('testBanner').style.display = 'block';
+
+  renderWeekStrip();
+
+  const access = isAccessAllowed();
+  if (!access.allowed) {
+    showScreen('screenBlocked');
+    if (access.reason === 'weekend') {
+      document.getElementById('blockedEmoji').textContent = '📅';
+      document.getElementById('blockedTitle').textContent = '평일에만 운영합니다';
+      document.getElementById('blockedMsg').innerHTML = '점심 메뉴 투표는 <strong>월~금요일</strong>에만 진행됩니다.';
+    }
+    return;
+  }
+
+  showScreen('screenUser');
+  refreshUserScreen();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ════════════════════════════════════
+//  WEEK STRIP (상단 요일 칩)
+// ════════════════════════════════════
+function renderWeekStrip() {
+  const dates  = getWeekDates();
+  const wk     = getWeekKey(new Date());
+  const today  = new Date();
+  const todayDateStr = today.toISOString().slice(0,10);
+
+  const html = dates.map((d, i) => {
+    const dateStr = d.toISOString().slice(0,10);
+    const isToday = dateStr === todayDateStr;
+    const r = getRestaurantForDay(wk, i);
+    let cls = 'day-chip';
+    if (isToday) cls += ' is-today';
+    else if (r)  cls += ' has-restaurant';
+    return `
+      <div class="${cls}">
+        <div class="dc-day">${DAY_LABELS[i]}</div>
+        <div class="dc-date">${d.getDate()}</div>
+        <div class="dc-icon">${r ? r.icon : '—'}</div>
+        <div class="dc-name">${r ? r.name : '미정'}</div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('weekStrip').innerHTML = html;
+}
+
+// ════════════════════════════════════
+//  USER SCREEN
+// ════════════════════════════════════
+function refreshUserScreen() {
+  ['cardWaiting','cardWeekPlan','cardDone','cardPass'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+
+  if (hasVoted()) {
+    document.getElementById('cardDone').style.display = 'block';
+    renderWeekPlanUser(); // 주간표는 항상 보여줌
+    document.getElementById('cardWeekPlan').style.display = 'block';
+    return;
+  }
+
+  const todayR = getTodayRestaurant();
+  if (!todayR) {
+    document.getElementById('cardWaiting').style.display = 'block';
+    renderWeekPlanUser();
+    document.getElementById('cardWeekPlan').style.display = 'block';
+    return;
+  }
+
+  renderWeekPlanUser();
+  document.getElementById('cardWeekPlan').style.display = 'block';
+  setTimeout(() => document.getElementById('ovLunch').classList.add('active'), 500);
+}
+
+function renderWeekPlanUser() {
+  const dates  = getWeekDates();
+  const wk     = getWeekKey(new Date());
+  const today  = new Date();
+  const todayDateStr = today.toISOString().slice(0,10);
+  const todayDayIdx  = getTodayDayIdx();
+
+  const html = dates.map((d, i) => {
+    const dateStr = d.toISOString().slice(0,10);
+    const isToday = dateStr === todayDateStr;
+    const r = getRestaurantForDay(wk, i);
+    const isPast = d < new Date(todayDateStr);
+
+    let rowCls = 'week-day-row';
+    if (isToday) rowCls += ' today';
+    if (!r) rowCls += ' no-data';
+
+    const badgeHtml = isToday
+      ? `<span class="wdr-badge today">오늘</span>`
+      : `<span class="wdr-badge">${DAY_LABELS[i]}요일</span>`;
+
+    const headerHtml = `
+      <div class="wdr-header">
+        ${badgeHtml}
+        <span class="wdr-day">${d.getMonth()+1}/${d.getDate()}</span>
+        ${r
+          ? `<span class="wdr-rname"><span class="wdr-icon">${r.icon}</span> ${r.name}</span>`
+          : `<span style="margin-left:auto;font-size:13px;color:var(--text-muted);font-style:italic">미정</span>`
+        }
+      </div>
+    `;
+
+    // 오늘 + 식당 있음 → 메뉴 투표 버튼 표시
+    let menuHtml = '';
+    if (isToday && r && r.menus.length) {
+      if (hasVoted()) {
+        // 결과 미리보기
+        const votes = getVotesForDay(wk, todayDayIdx);
+        const total = Object.values(votes).reduce((a,b)=>a+b,0);
+        menuHtml = `
+          <div class="wdr-menus">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:700">📊 현재 투표 현황</div>
+            ${r.menus.map(m => {
+              const cnt = votes[m.id] || 0;
+              const pct = total > 0 ? Math.round(cnt/total*100) : 0;
+              return `
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                  <span style="font-size:13px;font-weight:700;min-width:90px">${m.name}</span>
+                  <div class="vote-bar" style="flex:1"><div class="vote-bar-fill" style="width:${pct}%"></div></div>
+                  <span style="font-size:12px;font-weight:700;color:var(--primary);min-width:28px;text-align:right">${cnt}명</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      } else {
+        menuHtml = `
+          <div class="wdr-menus">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;font-weight:700">👇 메뉴를 선택해 투표하세요</div>
+            <div class="menu-grid">
+              ${r.menus.map(m => `
+                <button class="menu-btn" onclick="startVote('${r.id}','${r.name}','${m.id}','${m.name}')">${m.name}</button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    return `<div class="card ${rowCls}" style="margin-top:12px">${headerHtml}${menuHtml}</div>`;
+  }).join('');
+
+  document.getElementById('weekPlanList').innerHTML = html;
+}
+
+// ════════════════════════════════════
+//  USER: Lunch popup & Vote
+// ════════════════════════════════════
+function answerLunch(yes) {
+  document.getElementById('ovLunch').classList.remove('active');
+  if (!yes) {
+    document.getElementById('cardPass').style.display = 'block';
+  }
+  // 주간표는 이미 표시됨
+}
+
+function startVote(rId, rName, mId, mName) {
+  if (hasVoted()) { document.getElementById('ovDupe').classList.add('active'); return; }
+  pendingVote = { rId, rName, mId, mName };
+  document.getElementById('cvTitle').textContent = rName;
+  document.getElementById('cvMsg').textContent = `"${mName}" 으로 투표할까요?`;
+  document.getElementById('ovConfirm').classList.add('active');
+}
+
+function confirmVote() {
+  document.getElementById('ovConfirm').classList.remove('active');
+  if (!pendingVote) return;
+  const wk = getWeekKey(new Date());
+  const di = getTodayDayIdx();
+  if (!state.votes[wk]) state.votes[wk] = {};
+  if (!state.votes[wk][di]) state.votes[wk][di] = {};
+  state.votes[wk][di][pendingVote.mId] = (state.votes[wk][di][pendingVote.mId] || 0) + 1;
+  saveState();
+  setVoted();
+  pendingVote = null;
+  // 완료 카드 표시 & 주간표 갱신
+  document.getElementById('cardPass').style.display = 'none';
+  document.getElementById('cardDone').style.display = 'block';
+  renderWeekPlanUser(); // 결과 미리보기로 갱신
+  renderWeekStrip();
+  showToast('🎉 투표 완료! 맛있는 점심 되세요 😋');
+}
+
+function cancelVote() { document.getElementById('ovConfirm').classList.remove('active'); pendingVote = null; }
+
+// ════════════════════════════════════
+//  ADMIN: Login / Logout
+// ════════════════════════════════════
+function openAdminLogin() {
+  document.getElementById('pwInput').value = '';
+  document.getElementById('ovAdmin').classList.add('active');
+  setTimeout(() => document.getElementById('pwInput').focus(), 300);
+}
+function closeAdminLogin() { document.getElementById('ovAdmin').classList.remove('active'); }
+
+function checkAdmin() {
+  if (document.getElementById('pwInput').value === state.adminPw) {
+    closeAdminLogin();
+    // 시간/요일 관계없이 관리자는 항상 접근 가능
+    showScreen('screenAdmin');
+    renderWeekAdminTab();
+    renderRList();
+    renderResults();
+  } else {
+    showToast('❌ 비밀번호가 틀렸습니다');
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+
+function logout() {
+  const access = isAccessAllowed();
+  if (!access.allowed) {
+    showScreen('screenBlocked');
+  } else {
+    showScreen('screenUser');
+    refreshUserScreen();
+  }
+  renderWeekStrip();
+}
+
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+  if (tabId === 'tabResults') renderResults();
+  if (tabId === 'tabWeek')    renderWeekAdminTab();
+}
+
+// ════════════════════════════════════
+//  ADMIN: Weekly schedule tab
+// ════════════════════════════════════
+function renderWeekAdminTab() {
+  const dates  = getWeekDates();
+  const wk     = getWeekKey(new Date());
+  const today  = new Date();
+  const todayDateStr = today.toISOString().slice(0,10);
+
+  const html = dates.map((d, i) => {
+    const dateStr = d.toISOString().slice(0,10);
+    const isToday = dateStr === todayDateStr;
+    const r = getRestaurantForDay(wk, i);
+
+    const badgeCls = isToday ? 'war-badge today-badge' : 'war-badge';
+    const badgeText = isToday ? '오늘' : `${DAY_LABELS[i]}`;
+
+    return `
+      <div class="week-admin-row ${r ? 'set' : ''}">
+        <div class="war-header">
+          <span class="war-day">${DAY_LABELS[i]}요일</span>
+          <span class="${badgeCls}">${badgeText}</span>
+          <span style="font-size:13px;color:var(--text-muted);margin-left:4px">${d.getMonth()+1}/${d.getDate()}</span>
+          ${r
+            ? `<span class="war-rname">${r.icon} ${r.name}</span>`
+            : `<span class="war-unset">미설정</span>`}
+        </div>
+        <div class="war-actions">
+          <button class="btn btn-sm ${r ? 'btn-secondary' : 'btn-primary'}" onclick="openDayPick(${i})" style="flex:1">
+            ${r ? '✏️ 변경' : '+ 설정'}
+          </button>
+          ${r ? `<button class="btn btn-sm btn-danger" onclick="clearDayRestaurant(${i})" style="flex:0 0 auto">해제</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('weekAdminList').innerHTML = html;
+}
+
+// ── 요일별 식당 선택 팝업 ──
+function openDayPick(dayIdx) {
+  dpTargetDayIdx = dayIdx;
+  const dayEmojis = ['📅','📅','📅','📅','🎉'];
+  document.getElementById('dpDayEmoji').textContent = dayEmojis[dayIdx];
+  document.getElementById('dpDayTitle').textContent = `${DAY_LABELS[dayIdx]}요일 식당 선택`;
+  document.getElementById('dpDayDesc').textContent  = `${DAY_LABELS[dayIdx]}요일에 갈 식당을 선택해주세요.`;
+  renderDpPickList();
+  document.getElementById('ovDayPick').classList.add('active');
+}
+function closeDayPick() {
+  document.getElementById('ovDayPick').classList.remove('active');
+  dpTargetDayIdx = null;
+}
+
+function renderDpPickList() {
+  const wk = getWeekKey(new Date());
+  const currentId = (state.weekPlan[wk] && state.weekPlan[wk][dpTargetDayIdx]) || null;
+
+  if (!state.restaurants.length) {
+    document.getElementById('dpPickList').innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:14px;padding:12px">등록된 식당이 없습니다.</p>';
+    return;
+  }
+
+  document.getElementById('dpPickList').innerHTML = state.restaurants.map(r => {
+    const sel = r.id === currentId;
+    return `
+      <div class="r-pick-card ${sel?'selected':''}" onclick="selectDayRestaurant('${r.id}')">
+        <span class="rp-icon">${r.icon}</span>
+        <div class="rp-info">
+          <div class="rp-name">${r.name}</div>
+          <div class="rp-sub">${r.menus.map(m=>m.name).join(', ') || '메뉴 없음'}</div>
+        </div>
+        <span class="rp-check">${sel ? '✅' : '⬜'}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectDayRestaurant(rId) {
+  if (dpTargetDayIdx === null) return;
+  const wk = getWeekKey(new Date());
+  if (!state.weekPlan[wk]) state.weekPlan[wk] = {};
+  state.weekPlan[wk][dpTargetDayIdx] = rId;
+  // 해당 요일 투표 초기화
+  if (state.votes[wk] && state.votes[wk][dpTargetDayIdx]) {
+    delete state.votes[wk][dpTargetDayIdx];
+  }
+  saveState();
+  closeDayPick();
+  renderWeekAdminTab();
+  renderWeekStrip();
+  const r = state.restaurants.find(r => r.id === rId);
+  showToast(`✅ ${DAY_LABELS[dpTargetDayIdx]}요일: ${r.icon} ${r.name}`);
+}
+
+function clearDayRestaurant(dayIdx) {
+  if (!confirm('이 요일의 식당 설정을 해제할까요?')) return;
+  const wk = getWeekKey(new Date());
+  if (state.weekPlan[wk]) delete state.weekPlan[wk][dayIdx];
+  if (state.votes[wk])    delete state.votes[wk][dayIdx];
+  saveState();
+  renderWeekAdminTab();
+  renderWeekStrip();
+  showToast(`🗑️ ${DAY_LABELS[dayIdx]}요일 식당이 해제되었습니다`);
+}
+
+function pickDayRandom() {
+  if (!state.restaurants.length) { showToast('등록된 식당이 없습니다'); return; }
+  const wk   = getWeekKey(new Date());
+  const plan = state.weekPlan[wk] || {};
+  // 이번 주 다른 요일에 이미 배정된 식당은 제외 (선택 사항, UX 향상)
+  const usedIds = Object.entries(plan)
+    .filter(([di]) => parseInt(di) !== dpTargetDayIdx)
+    .map(([, rid]) => rid);
+  const pool = state.restaurants.filter(r => !usedIds.includes(r.id));
+  const picked = (pool.length > 0 ? pool : state.restaurants)[Math.floor(Math.random() * (pool.length || state.restaurants.length))];
+  selectDayRestaurant(picked.id);
+}
+
+// ════════════════════════════════════
+//  ADMIN: Menu management
+// ════════════════════════════════════
+function renderRList() {
+  const c = document.getElementById('rList');
+  if (!state.restaurants.length) {
+    c.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:16px 0">등록된 식당이 없습니다.</p>';
+    return;
+  }
+  c.innerHTML = state.restaurants.map(r => `
+    <div style="margin-bottom:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-weight:900;font-size:16px">${r.icon} ${r.name}</span>
+        <button class="btn btn-danger btn-sm" onclick="deleteR('${r.id}')" style="padding:6px 12px;font-size:12px">삭제</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px">
+        ${r.menus.map(m => `<span class="tag">${m.name}<button class="tag-del" onclick="deleteM('${r.id}','${m.id}')">×</button></span>`).join('')}
+        ${!r.menus.length ? '<span style="color:var(--text-muted);font-size:13px">메뉴 없음</span>' : ''}
+      </div>
+      <div class="row">
+        <input class="input" id="mi_${r.id}" placeholder="메뉴 이름" onkeyup="if(event.key==='Enter')addM('${r.id}')">
+        <button class="btn btn-sm btn-primary" onclick="addM('${r.id}')" style="white-space:nowrap">+ 추가</button>
+      </div>
+    </div>
+    <div class="divider" style="margin:14px 0"></div>
+  `).join('');
+}
+
+function addRestaurant() {
+  const name = document.getElementById('newRName').value.trim();
+  const icon = document.getElementById('newRIcon').value.trim() || '🍽️';
+  if (!name) { showToast('식당 이름을 입력해주세요'); return; }
+  state.restaurants.push({ id: genId(), name, icon, menus: [] });
+  document.getElementById('newRName').value = '';
+  document.getElementById('newRIcon').value = '';
+  saveState();
+  renderRList();
+  showToast('✅ 식당이 추가되었습니다');
+}
+
+function deleteR(id) {
+  if (!confirm('이 식당을 삭제할까요? 주간 식단에서도 제거됩니다.')) return;
+  state.restaurants = state.restaurants.filter(r => r.id !== id);
+  // 주간 식단에서도 제거
+  Object.keys(state.weekPlan).forEach(wk => {
+    Object.keys(state.weekPlan[wk]).forEach(di => {
+      if (state.weekPlan[wk][di] === id) {
+        delete state.weekPlan[wk][di];
+        if (state.votes[wk]) delete state.votes[wk][di];
+      }
+    });
+  });
+  saveState();
+  renderRList();
+  renderWeekAdminTab();
+  renderWeekStrip();
+  showToast('🗑️ 삭제되었습니다');
+}
+
+function addM(rid) {
+  const input = document.getElementById('mi_' + rid);
+  const name = input.value.trim();
+  if (!name) { showToast('메뉴 이름을 입력해주세요'); return; }
+  const r = state.restaurants.find(r => r.id === rid);
+  if (!r) return;
+  r.menus.push({ id: genId(), name });
+  input.value = '';
+  saveState();
+  renderRList();
+  showToast('✅ 메뉴가 추가되었습니다');
+}
+
+function deleteM(rid, mid) {
+  const r = state.restaurants.find(r => r.id === rid);
+  if (r) { r.menus = r.menus.filter(m => m.id !== mid); saveState(); renderRList(); }
+}
+
+// ════════════════════════════════════
+//  ADMIN: Results
+// ════════════════════════════════════
+function renderResults() {
+  const c  = document.getElementById('resultsTable');
+  const wk = getWeekKey(new Date());
+  const di = getTodayDayIdx();
+  const r  = getTodayRestaurant();
+
+  if (!r) {
+    c.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px 0">오늘의 식당이 설정되지 않았습니다.</p>';
+    return;
+  }
+
+  const votes = getVotesForDay(wk, di);
+  const total = Object.values(votes).reduce((a,b)=>a+b,0);
+  const sorted = [...r.menus].sort((a,b)=>(votes[b.id]||0)-(votes[a.id]||0));
+
+  c.innerHTML = `
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:20px">${r.icon}</span>
+      <span style="font-weight:900">${r.name}</span>
+      <span style="margin-left:auto;font-size:13px;color:var(--text-muted)">총 <strong style="color:var(--primary)">${total}명</strong></span>
+    </div>
+    <table class="result-table">
+      <thead><tr><th>메뉴</th><th style="text-align:right">투표</th></tr></thead>
+      <tbody>
+        ${sorted.map(m => {
+          const cnt = votes[m.id] || 0;
+          const pct = total > 0 ? Math.round(cnt/total*100) : 0;
+          return `<tr>
+            <td>
+              <div style="font-weight:700;font-size:14px">${m.name}</div>
+              <div class="vote-bar"><div class="vote-bar-fill" style="width:${pct}%"></div></div>
+            </td>
+            <td style="text-align:right;vertical-align:top;padding-top:14px">
+              ${cnt>0 ? `<span class="count-badge">${cnt}명</span>` : `<span class="count-zero">0</span>`}
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function resetTodayVotes() {
+  if (!confirm('오늘의 투표 결과를 초기화할까요?')) return;
+  const wk = getWeekKey(new Date());
+  const di = getTodayDayIdx();
+  if (state.votes[wk]) delete state.votes[wk][di];
+  saveState();
+  renderResults();
+  showToast('🔄 오늘의 투표가 초기화되었습니다');
+}
+
+// ── Start ──
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
