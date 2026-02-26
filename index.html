@@ -204,7 +204,7 @@ import {
 // ════════════════════════════════════
 //  CONFIG
 // ════════════════════════════════════
-const IS_TEST_MODE = true; // true = 시간/요일 제한 무시
+const IS_TEST_MODE = false; // true = 시간/요일 제한 무시
 
 // ════════════════════════════════════
 //  FIREBASE INIT
@@ -269,7 +269,7 @@ function isAccessAllowed() {
   const now = new Date(), day = now.getDay();
   if (day === 0 || day === 6) return { allowed: false, reason: 'weekend' };
   const t = now.getHours() * 60 + now.getMinutes();
-  if (t < 660 || t >= 680) return { allowed: false, reason: 'time' };
+  if (t < 630 || t >= 680) return { allowed: false, reason: 'time' };
   return { allowed: true };
 }
 
@@ -875,7 +875,7 @@ window.addEventListener('DOMContentLoaded', init);
     <div class="blocked-box">
       <span class="blocked-emoji" id="blockedEmoji">⏰</span>
       <h2 id="blockedTitle">투표 시간이 아닙니다</h2>
-      <p id="blockedMsg">점심 메뉴 투표는<br>평일 오전 <strong>11:00 ~ 11:20</strong>에 가능합니다.</p>
+      <p id="blockedMsg">점심 메뉴 투표는<br>평일 오전 <strong>10:30 ~ 11:20</strong>에 가능합니다.</p>
       <div style="margin-top:28px">
         <button class="btn btn-secondary" style="max-width:200px;margin:0 auto;font-size:13px;padding:12px;opacity:0.65" onclick="window._openAdminLogin()">🔒 관리자 로그인</button>
       </div>
